@@ -59,7 +59,7 @@ int main(void)
     SetRandomSeed(67218);
 
     // Generate maze image using the grid-based generator
-    // DONE: [1p] Improve function to support extra configuration parameters
+    // TODO: [1p] Improve function to support extra configuration parameters
     Image imMaze = GenImageMazeEx(MAZE_WIDTH, MAZE_HEIGHT, 3, 3, 0.75f);
 
     // Load a texture to be drawn on screen from our image data
@@ -79,6 +79,7 @@ int main(void)
     // Player current position on image-coordinates
     // WARNING: It could require conversion to world coordinates!
     Point playerCell = startCell;
+    Point mouseCell = {0};
 
     // Camera 2D for 2d gameplay mode
     // TODO: Initialize camera parameters as required
@@ -175,6 +176,10 @@ int main(void)
             else if (camera2d.zoom < 1.0f)
                 camera2d.zoom = 1.0f;
 
+            // Sync 3D camera position
+            cameraFP.position.x = playerCell.x + mdlPosition.x - 0.5f;
+            cameraFP.position.z = playerCell.y + mdlPosition.y - 0.5f;
+
             // TODO: Maze items pickup logic
         }
         break;
@@ -205,8 +210,24 @@ int main(void)
             // NOTE: Mouse position is returned in screen coordinates and it has to
             // transformed into image coordinates
             // Once the cell is selected, if mouse button pressed add/remove image pixels
-
             // WARNING: Remember that when imMaze changes, texMaze and mdlMaze must be also updated!
+            Vector2 mousePos = GetMousePosition();
+            mouseCell.x = (mousePos.x - (GetScreenWidth() / 2 - texMaze.width * MAZE_DRAW_SCALE / 2)) / MAZE_DRAW_SCALE;
+            mouseCell.y = (mousePos.y - (GetScreenHeight() / 2 - texMaze.height * MAZE_DRAW_SCALE / 2)) / MAZE_DRAW_SCALE;
+
+            if (mouseCell.x >= 0 && mouseCell.x < MAZE_WIDTH && mouseCell.y >= 0 && mouseCell.y < MAZE_HEIGHT)
+            {
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+                    ImageDrawPixel(&imMaze, mouseCell.x, mouseCell.y, WHITE);
+                else if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
+                    ImageDrawPixel(&imMaze, mouseCell.x, mouseCell.y, BLACK);
+            }
+
+            // Reload texture and model
+            UnloadTexture(texMaze);
+            texMaze = LoadTextureFromImage(imMaze);
+            UnloadMesh(meshMaze);
+            meshMaze = GenMeshCubicmap(imMaze, (Vector3){1.0f, 1.0f, 1.0f});
 
             // TODO: [2p] Collectible map items: player score
             // Using same mechanism than map editor, implement an items editor, registering
@@ -267,6 +288,7 @@ int main(void)
 
             DrawRectangle(mazePosition.x + playerCell.x * MAZE_DRAW_SCALE, mazePosition.y + playerCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, GREEN);
 
+            // End cell drawn in red in order to see finish position
             DrawRectangle(mazePosition.x + endCell.x * MAZE_DRAW_SCALE, mazePosition.y + endCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, RED);
 
             // TODO: Draw maze items 2d (using sprite texture?)
@@ -306,8 +328,15 @@ int main(void)
             // Draw lines rectangle over texture, scaled and centered on screen
             DrawRectangleLines(GetScreenWidth() / 2 - texMaze.width * MAZE_DRAW_SCALE / 2, GetScreenHeight() / 2 - texMaze.height * MAZE_DRAW_SCALE / 2, MAZE_WIDTH * MAZE_DRAW_SCALE, MAZE_HEIGHT * MAZE_DRAW_SCALE, RED);
 
+            // Draw Mouse Position if in bounds
+            if (mouseCell.x >= 0 && mouseCell.x < MAZE_WIDTH && mouseCell.y >= 0 && mouseCell.y < MAZE_HEIGHT)
+                DrawRectangleLines(mazePosition.x + mouseCell.x * MAZE_DRAW_SCALE, mazePosition.y + mouseCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, BLUE);
+
             // TODO: Draw player using a rectangle, consider maze screen coordinates!
             DrawRectangle(mazePosition.x + playerCell.x * MAZE_DRAW_SCALE, mazePosition.y + playerCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, GREEN);
+
+            // End cell drawn in red in order to see finish position
+            DrawRectangle(mazePosition.x + endCell.x * MAZE_DRAW_SCALE, mazePosition.y + endCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, RED);
 
             // TODO: Draw editor UI required elements -> TIP: raygui immediate mode UI
             // NOTE: In immediate-mode UI, logic and drawing is defined together
