@@ -120,14 +120,15 @@ int main(void)
 
     // TODO: Define all variables required for UI editor (raygui)
 
-    SetTargetFPS(60); // Set our game to run at 60 frames-per-second
-    bool exitGame = false; //Game exit handler
+    SetTargetFPS(60);      // Set our game to run at 60 frames-per-second
+    bool exitGame = false; // Game exit handler
     //--------------------------------------------------------------------------------------
 
     // Main game loop
     while (!WindowShouldClose()) // Detect window close button or ESC key
     {
-        if(exitGame) break;
+        if (exitGame)
+            break;
         // Update
         //----------------------------------------------------------------------------------
         // Select current mode as desired
@@ -159,8 +160,9 @@ int main(void)
 
             if (GetImageColor(imMaze, playerCell.x, playerCell.y).r == 255)
                 playerCell = playerCellPre;
-            
-            if (playerCell.x == endCell.x && playerCell.y == endCell.y) exitGame = true;
+
+            if (playerCell.x == endCell.x && playerCell.y == endCell.y)
+                exitGame = true;
 
             // TODO: [2p] Camera 2D system following player movement around the map
             // Update Camera2D parameters as required to follow player and zoom control
@@ -171,6 +173,7 @@ int main(void)
                 camera2d.zoom = 6.0f;
             else if (camera2d.zoom < 1.0f)
                 camera2d.zoom = 1.0f;
+
             // TODO: Maze items pickup logic
         }
         break;
@@ -179,7 +182,18 @@ int main(void)
             // TODO: [1p] Camera 3D system and �3D maze mode�
             // Implement maze 3d first-person mode -> TIP: UpdateCamera()
             // Use the imMaze map to implement collision detection, similar to 2D
+            Vector3 camOldPos = cameraFP.position;
             UpdateCamera(&cameraFP, CAMERA_FIRST_PERSON);
+
+            // Position update
+            Vector2 playerPos = {cameraFP.position.x, cameraFP.position.z};
+            playerCell.x = (int)(playerPos.x - mdlPosition.x + 0.5f);
+            playerCell.y = (int)(playerPos.y - mdlPosition.z + 0.5f);
+
+            // Wall collision handler
+            if (GetImageColor(imMaze, playerCell.x, playerCell.y).r == 255)
+                cameraFP.position = camOldPos;
+
             // TODO: Maze items pickup logic
         }
         break;
@@ -247,13 +261,13 @@ int main(void)
                     }
                 }
             }
-            
+
             // TODO: Draw player rectangle or sprite at player position
 
-            DrawRectangle(mazePosition.x + playerCell.x*MAZE_DRAW_SCALE, mazePosition.y + playerCell.y*MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, GREEN);
+            DrawRectangle(mazePosition.x + playerCell.x * MAZE_DRAW_SCALE, mazePosition.y + playerCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, GREEN);
 
-            DrawRectangle(mazePosition.x + endCell.x*MAZE_DRAW_SCALE, mazePosition.y + endCell.y*MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, RED);
-            
+            DrawRectangle(mazePosition.x + endCell.x * MAZE_DRAW_SCALE, mazePosition.y + endCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, RED);
+
             // TODO: Draw maze items 2d (using sprite texture?)
 
             // TODO: EXTRA: Draw pathfinding result, shorter path from start to end
@@ -271,6 +285,7 @@ int main(void)
             BeginMode3D(cameraFP);
 
             // TODO: Draw maze generated 3d model
+            DrawModel(mdlMaze, mdlPosition, 1.0f, WHITE);
 
             // TODO: Maze items 3d draw (using 3d shape/model?) on required positions
 
@@ -290,6 +305,7 @@ int main(void)
             DrawRectangleLines(GetScreenWidth() / 2 - texMaze.width * MAZE_DRAW_SCALE / 2, GetScreenHeight() / 2 - texMaze.height * MAZE_DRAW_SCALE / 2, MAZE_WIDTH * MAZE_DRAW_SCALE, MAZE_HEIGHT * MAZE_DRAW_SCALE, RED);
 
             // TODO: Draw player using a rectangle, consider maze screen coordinates!
+            DrawRectangle(mazePosition.x + playerCell.x * MAZE_DRAW_SCALE, mazePosition.y + playerCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, GREEN);
 
             // TODO: Draw editor UI required elements -> TIP: raygui immediate mode UI
             // NOTE: In immediate-mode UI, logic and drawing is defined together
