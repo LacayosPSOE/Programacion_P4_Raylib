@@ -115,8 +115,9 @@ int main(void)
     texBiomes[3] = LoadTexture("resources/maze_atlas04.png");
     int currentBiome = 0;
 
-    // TODO: Define all variables required for game UI elements (sprites, fonts...)
     mdlMaze.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texBiomes[0];
+
+    // TODO: Define all variables required for game UI elements (sprites, fonts...)
 
     // TODO: Define all variables required for UI editor (raygui)
 
@@ -285,6 +286,7 @@ int main(void)
             BeginMode3D(cameraFP);
 
             // TODO: Draw maze generated 3d model
+            mdlMaze.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texBiomes[currentBiome];
             DrawModel(mdlMaze, mdlPosition, 1.0f, WHITE);
 
             // TODO: Maze items 3d draw (using 3d shape/model?) on required positions
