@@ -59,7 +59,7 @@ int main(void)
     SetRandomSeed(67218);
 
     // Generate maze image using the grid-based generator
-    // TODO: [1p] Improve function to support extra configuration parameters
+    // DONE: [1p] Improve function to support extra configuration parameters
     Image imMaze = GenImageMazeEx(MAZE_WIDTH, MAZE_HEIGHT, 3, 3, 0.75f);
 
     // Load a texture to be drawn on screen from our image data
@@ -82,7 +82,7 @@ int main(void)
     Point mouseCell = {0};
 
     // Camera 2D for 2d gameplay mode
-    // TODO: Initialize camera parameters as required
+    // DONE: Initialize camera parameters as required
     Camera2D camera2d = {0};
     camera2d.target = (Vector2){mazePosition.x + playerCell.x * MAZE_DRAW_SCALE, mazePosition.y + playerCell.y * MAZE_DRAW_SCALE};
     camera2d.offset = (Vector2){GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
@@ -90,7 +90,7 @@ int main(void)
     camera2d.zoom = 5.0f;
 
     // Camera 3D for first-person gameplay mode
-    // TODO: Initialize camera parameters as required
+    // DONE: Initialize camera parameters as required
     // NOTE: In a first-person mode, camera.position is actually the player position
     // REMEMBER: We are using a different coordinates space than 2d mode
     Camera3D cameraFP = {0};
@@ -108,7 +108,7 @@ int main(void)
     bool mazeItemPicked[MAX_MAZE_ITEMS] = {0};
 
     // Define textures to be used as our "biomes"
-    // TODO: Load additional textures for different biomes
+    // DONE: Load additional textures for different biomes
     Texture texBiomes[4] = {0};
     texBiomes[0] = LoadTexture("resources/maze_atlas01.png");
     texBiomes[1] = LoadTexture("resources/maze_atlas02.png");
@@ -145,7 +145,7 @@ int main(void)
         {
         case 0: // Game 2D mode
         {
-            // TODO: [2p] Player 2D movement from predefined start point (A) to end point (B)
+            // DONE: [2p] Player 2D movement from predefined start point (A) to end point (B)
             // Implement maze 2D player movement logic (cursors || WASD)
             // Use imMaze pixel information to check collisions
             // Detect if current playerCell == endCell to finish game
@@ -166,7 +166,7 @@ int main(void)
             if (playerCell.x == endCell.x && playerCell.y == endCell.y)
                 exitGame = true;
 
-            // TODO: [2p] Camera 2D system following player movement around the map
+            // DONE: [2p] Camera 2D system following player movement around the map
             // Update Camera2D parameters as required to follow player and zoom control
             camera2d.target = (Vector2){mazePosition.x + playerCell.x * MAZE_DRAW_SCALE, mazePosition.y + playerCell.y * MAZE_DRAW_SCALE};
 
@@ -185,7 +185,7 @@ int main(void)
         break;
         case 1: // Game 3D mode
         {
-            // TODO: [1p] Camera 3D system and �3D maze mode�
+            // DONE: [1p] Camera 3D system and �3D maze mode�
             // Implement maze 3d first-person mode -> TIP: UpdateCamera()
             // Use the imMaze map to implement collision detection, similar to 2D
             Vector3 camOldPos = cameraFP.position;
@@ -205,7 +205,7 @@ int main(void)
         break;
         case 2: // Editor mode
         {
-            // TODO: [2p] Visual �map editor mode�. Edit image pixels with mouse.
+            // DONE: [2p] Visual �map editor mode�. Edit image pixels with mouse.
             // Implement logic to selecte image cell from mouse position -> TIP: GetMousePosition()
             // NOTE: Mouse position is returned in screen coordinates and it has to
             // transformed into image coordinates
@@ -238,7 +238,7 @@ int main(void)
             break;
         }
 
-        // TODO: [1p] Multiple maze biomes supported
+        // DONE: [1p] Multiple maze biomes supported
         // Implement changing between the different textures to be used as biomes
         // NOTE: For the 3d model, the current selected texture must be applied to the model material
         if (IsKeyPressed(KEY_ONE))
@@ -268,7 +268,7 @@ int main(void)
             // Draw maze using camera2d (for automatic positioning and scale)
             BeginMode2D(camera2d);
 
-            // TODO: Draw maze walls and floor using current texture biome
+            // DONE: Draw maze walls and floor using current texture biome
             for (int y = 0; y < imMaze.height; y++)
             {
                 for (int x = 0; x < imMaze.width; x++)
@@ -284,8 +284,7 @@ int main(void)
                 }
             }
 
-            // TODO: Draw player rectangle or sprite at player position
-
+            // DONE: Draw player rectangle or sprite at player position
             DrawRectangle(mazePosition.x + playerCell.x * MAZE_DRAW_SCALE, mazePosition.y + playerCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, GREEN);
 
             // End cell drawn in red in order to see finish position
@@ -307,7 +306,7 @@ int main(void)
             // Draw maze using cameraFP (for first-person camera)
             BeginMode3D(cameraFP);
 
-            // TODO: Draw maze generated 3d model
+            // DONE: Draw maze generated 3d model
             mdlMaze.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texBiomes[currentBiome];
             DrawModel(mdlMaze, mdlPosition, 1.0f, WHITE);
 
@@ -332,7 +331,7 @@ int main(void)
             if (mouseCell.x >= 0 && mouseCell.x < MAZE_WIDTH && mouseCell.y >= 0 && mouseCell.y < MAZE_HEIGHT)
                 DrawRectangleLines(mazePosition.x + mouseCell.x * MAZE_DRAW_SCALE, mazePosition.y + mouseCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, BLUE);
 
-            // TODO: Draw player using a rectangle, consider maze screen coordinates!
+            // DONE: Draw player using a rectangle, consider maze screen coordinates!
             DrawRectangle(mazePosition.x + playerCell.x * MAZE_DRAW_SCALE, mazePosition.y + playerCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, GREEN);
 
             // End cell drawn in red in order to see finish position
