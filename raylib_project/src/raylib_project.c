@@ -121,11 +121,13 @@ int main(void)
     // TODO: Define all variables required for UI editor (raygui)
 
     SetTargetFPS(60); // Set our game to run at 60 frames-per-second
+    bool exitGame = false; //Game exit handler
     //--------------------------------------------------------------------------------------
 
     // Main game loop
     while (!WindowShouldClose()) // Detect window close button or ESC key
     {
+        if(exitGame) break;
         // Update
         //----------------------------------------------------------------------------------
         // Select current mode as desired
@@ -157,6 +159,8 @@ int main(void)
 
             if (GetImageColor(imMaze, playerCell.x, playerCell.y).r == 255)
                 playerCell = playerCellPre;
+            
+            if (playerCell.x == endCell.x && playerCell.y == endCell.y) exitGame = true;
 
             // TODO: [2p] Camera 2D system following player movement around the map
             // Update Camera2D parameters as required to follow player and zoom control
@@ -247,6 +251,9 @@ int main(void)
             // TODO: Draw player rectangle or sprite at player position
 
             DrawRectangle(mazePosition.x + playerCell.x*MAZE_DRAW_SCALE, mazePosition.y + playerCell.y*MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, GREEN);
+
+            DrawRectangle(mazePosition.x + endCell.x*MAZE_DRAW_SCALE, mazePosition.y + endCell.y*MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, RED);
+            
             // TODO: Draw maze items 2d (using sprite texture?)
 
             // TODO: EXTRA: Draw pathfinding result, shorter path from start to end
