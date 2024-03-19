@@ -33,6 +33,7 @@ typedef struct Point {
 // Generate procedural maze image, using grid-based algorithm
 // NOTE: Functions defined as static are internal to the module
 static Image GenImageMaze(int width, int height, float skipChance);
+static Image GenImageMazeEx (int width, int height, int spacingRows, int spacingCols, float skipChance);
 
 // Get shorter path between two points, implements pathfinding algorithm: A*
 static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount);
@@ -57,8 +58,8 @@ int main(void)
     SetRandomSeed(67218);
     
     // Generate maze image using the grid-based generator
-    // TODO: [1p] Improve function to support extra configuration parameters 
-    Image imMaze = GenImageMaze(MAZE_WIDTH, MAZE_HEIGHT, 0.75f);
+    // DONE: [1p] Improve function to support extra configuration parameters 
+    Image imMaze = GenImageMazeEx(MAZE_WIDTH, MAZE_HEIGHT, 3, 3, 0.75f);
 
     // Load a texture to be drawn on screen from our image data
     // WARNING: If imMaze pixel data is modified, texMaze needs to be re-loaded
@@ -293,6 +294,89 @@ static Image GenImageMaze(int width, int height, float skipChance)
             }
         }
     }
+
+    
+    
+    // Define an array of 4 directions for convenience
+    Point directions[4] = {
+        { 0, -1 },      // Up
+        { 0, 1 },       // Down
+        { -1, 0 },      // Left
+        { 1, 0 },       // Right
+    };
+    
+    // Load a random sequence of points, to be used as indices, so,
+    // we can access mazePoints[] randomly indexed, instead of following the order we gor them
+    int *pointIndices = LoadRandomSequence(mazePointsCounter, 0, mazePointsCounter - 1);
+    
+    // Process every random maze point, moving in one random direction,
+    // until we collision with another wall (WHITE pixel)
+    for (int i = 0; i < mazePointsCounter; i++)
+    {
+        Point currentPoint = mazePoints[pointIndices[i]];
+        Point currentDir = directions[GetRandomValue(0, 3)];
+        currentPoint.x += currentDir.x;
+        currentPoint.y += currentDir.y;
+        
+        // Keep incrementing wall in selected direction until a WHITE pixel is found
+        // NOTE: We only check against the color.r component
+        while (GetImageColor(imMaze, currentPoint.x, currentPoint.y).r != 255)
+        {
+            ImageDrawPixel(&imMaze, currentPoint.x, currentPoint.y, WHITE);
+            
+            currentPoint.x += currentDir.x;
+            currentPoint.y += currentDir.y;
+        }
+    }
+    
+    UnloadRandomSequence(pointIndices);
+    
+    return imMaze;
+}
+
+static Image GenImageMazeEx(int width, int height, int spacingRows, int spacingCols, float skipChance)
+{
+    // Generate image of plain color (BLACK)
+    Image imMaze = GenImageColor(width, height, BLACK);
+    
+    // Allocate an array of point used for maze generation
+    // NOTE: Dynamic array allocation, memory allocated in HEAP (MAX: Available RAM)
+    Point *mazePoints = (Point *)malloc(MAZE_WIDTH*MAZE_HEIGHT*sizeof(Point));
+    int mazePointsCounter = 0;
+    
+    // Start traversing image data, line by line, to paint our maze
+    for (int y = 0; y < imMaze.height; y++)
+    {
+        for (int x = 0; x < imMaze.width; x++)
+        {
+            // Check image borders (1 px)
+            if ((x == 0) || (x == (imMaze.width - 1)) || (y == 0) || (y == (imMaze.height - 1)))
+            {
+                ImageDrawPixel(&imMaze, x, y, WHITE);   // Image border pixels set to WHITE
+            }
+            else
+            {
+                // Check pixel module to set maze corridors width and height
+                if ((x%spacingCols == 0) && (y%spacingRows == 0))
+                {
+                    // Get change to define a point for further processing
+                    float chance = (float)GetRandomValue(0, 100)/100.0f;
+                    
+                    if (chance >= skipChance)
+                    {
+                        // Set point as wall...
+                        ImageDrawPixel(&imMaze, x, y, WHITE);
+                        
+                        // ...save point for further processing
+                        mazePoints[mazePointsCounter] = (Point){ x, y };
+                        mazePointsCounter++;
+                    }
+                }
+            }
+        }
+    }
+
+    
     
     // Define an array of 4 directions for convenience
     Point directions[4] = {
