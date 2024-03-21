@@ -31,6 +31,12 @@ typedef struct Point
     int y;
 } Point;
 
+typedef struct Timer
+{
+    double currentTime;
+    double lifeTime;
+} Timer;
+
 // Generate procedural maze image, using grid-based algorithm
 // NOTE: Functions defined as static are internal to the module
 static Image GenImageMaze(int width, int height, float skipChance);
@@ -56,7 +62,7 @@ int main(void)
 
     // Random seed defines the random numbers generation,
     // always the same if using the same seed
-    SetRandomSeed(67218);
+    // SetRandomSeed(67218);
 
     // Generate maze image using the grid-based generator
     // DONE: [1p] Improve function to support extra configuration parameters
@@ -79,7 +85,6 @@ int main(void)
     // Player current position on image-coordinates
     // WARNING: It could require conversion to world coordinates!
     Point playerCell = startCell;
-    Point mouseCell = {0};
 
     // Camera 2D for 2d gameplay mode
     // DONE: Initialize camera parameters as required
@@ -124,15 +129,25 @@ int main(void)
 
     SetTargetFPS(60);      // Set our game to run at 60 frames-per-second
     bool exitGame = false; // Game exit handler
+    double gameScore = 0;  // Game Score
+
+    // DONE: Set game timer
+    Timer timer;
+    timer.currentTime = 0;
+    timer.lifeTime = 120;
+    // Max game time in seconds
     //--------------------------------------------------------------------------------------
 
     // Main game loop
     while (!WindowShouldClose()) // Detect window close button or ESC key
     {
-        if (exitGame)
-            break;
         // Update
         //----------------------------------------------------------------------------------
+        // Check if game exits
+        exitGame = timer.currentTime >= timer.lifeTime;
+        if (exitGame)
+            break;
+
         // Select current mode as desired
         if (IsKeyPressed(KEY_Z))
             currentMode = 0; // Game 2D mode
@@ -163,7 +178,7 @@ int main(void)
             if (GetImageColor(imMaze, playerCell.x, playerCell.y).r == 255)
                 playerCell = playerCellPre;
 
-            if (playerCell.x == endCell.x && playerCell.y == endCell.y)
+            if ((playerCell.x == endCell.x) && (playerCell.y == endCell.y))
                 exitGame = true;
 
             // DONE: [2p] Camera 2D system following player movement around the map
@@ -180,7 +195,18 @@ int main(void)
             cameraFP.position.x = playerCell.x + mdlPosition.x - 0.5f;
             cameraFP.position.z = playerCell.y + mdlPosition.y - 0.5f;
 
-            // TODO: Maze items pickup logic
+            // DONE: Maze items pickup logic
+            for (int i = 0; i < MAX_MAZE_ITEMS; i++)
+            {
+                if ((playerCell.x == mazeItems[i].x) && (playerCell.y == mazeItems[i].y) && !mazeItemPicked[i])
+                {
+                    gameScore++;
+                    mazeItemPicked[i] = true;
+                }
+            }
+
+            // Increase Timer
+            timer.currentTime += GetFrameTime();
         }
         break;
         case 1: // Game 3D mode
@@ -200,7 +226,18 @@ int main(void)
             if (GetImageColor(imMaze, playerCell.x, playerCell.y).r == 255)
                 cameraFP.position = camOldPos;
 
-            // TODO: Maze items pickup logic
+            // DONE: Maze items pickup logic
+            for (int i = 0; i < MAX_MAZE_ITEMS; i++)
+            {
+                if ((playerCell.x == mazeItems[i].x) && (playerCell.y == mazeItems[i].y) && !mazeItemPicked[i])
+                {
+                    mazeItemPicked[i] = true;
+                    gameScore++;
+                }
+            }
+
+            // Increase Timer
+            timer.currentTime += GetFrameTime();
         }
         break;
         case 2: // Editor mode
@@ -212,15 +249,23 @@ int main(void)
             // Once the cell is selected, if mouse button pressed add/remove image pixels
             // WARNING: Remember that when imMaze changes, texMaze and mdlMaze must be also updated!
             Vector2 mousePos = GetMousePosition();
-            mouseCell.x = (mousePos.x - (GetScreenWidth() / 2 - texMaze.width * MAZE_DRAW_SCALE / 2)) / MAZE_DRAW_SCALE;
-            mouseCell.y = (mousePos.y - (GetScreenHeight() / 2 - texMaze.height * MAZE_DRAW_SCALE / 2)) / MAZE_DRAW_SCALE;
+            selectedCell.x = (mousePos.x - (GetScreenWidth() / 2 - texMaze.width * MAZE_DRAW_SCALE / 2)) / MAZE_DRAW_SCALE;
+            selectedCell.y = (mousePos.y - (GetScreenHeight() / 2 - texMaze.height * MAZE_DRAW_SCALE / 2)) / MAZE_DRAW_SCALE;
 
-            if (mouseCell.x >= 0 && mouseCell.x < MAZE_WIDTH && mouseCell.y >= 0 && mouseCell.y < MAZE_HEIGHT)
+            if (selectedCell.x >= 0 && selectedCell.x < MAZE_WIDTH && selectedCell.y >= 0 && selectedCell.y < MAZE_HEIGHT)
             {
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-                    ImageDrawPixel(&imMaze, mouseCell.x, mouseCell.y, WHITE);
+                    ImageDrawPixel(&imMaze, selectedCell.x, selectedCell.y, WHITE);
                 else if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
-                    ImageDrawPixel(&imMaze, mouseCell.x, mouseCell.y, BLACK);
+                {
+                    ImageDrawPixel(&imMaze, selectedCell.x, selectedCell.y, BLACK);
+                    // Check if an item is deleted
+                    for (int i = 0; i < MAX_MAZE_ITEMS; i++)
+                    {
+                        if (selectedCell.x == mazeItems[i].x && selectedCell.y == mazeItems[i].y)
+                            mazeItems[i] = (Point){NULL};
+                    }
+                }
             }
 
             // Reload texture and model
@@ -229,9 +274,30 @@ int main(void)
             UnloadMesh(meshMaze);
             meshMaze = GenMeshCubicmap(imMaze, (Vector3){1.0f, 1.0f, 1.0f});
 
-            // TODO: [2p] Collectible map items: player score
+            // DONE: [2p] Collectible map items: player score
             // Using same mechanism than map editor, implement an items editor, registering
             // points in the map where items should be added for player pickup -> TIP: mazeItems[]
+            if (selectedCell.x >= 0 && selectedCell.x < MAZE_WIDTH && selectedCell.y >= 0 && selectedCell.y < MAZE_HEIGHT)
+            {
+                if (IsMouseButtonPressed(MOUSE_MIDDLE_BUTTON))
+                {
+                    int pos = 0;
+                    bool found = false;
+                    while ((pos < MAX_MAZE_ITEMS) && !found)
+                    {
+                        if (mazeItems[pos].x == NULL)
+                            found = true;
+                        else
+                            pos++;
+                    }
+                    if (found)
+                    {
+                        ImageDrawPixel(&imMaze, selectedCell.x, selectedCell.y, BLUE);
+                        mazeItems[pos] = (Point){selectedCell.x, selectedCell.y};
+                        mazeItemPicked[pos] = false;
+                    }
+                }
+            }
         }
         break;
         default:
@@ -290,15 +356,27 @@ int main(void)
             // End cell drawn in red in order to see finish position
             DrawRectangle(mazePosition.x + endCell.x * MAZE_DRAW_SCALE, mazePosition.y + endCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, RED);
 
-            // TODO: Draw maze items 2d (using sprite texture?)
+            // DONE: Draw maze items 2d (using sprite texture?)
+            for (int i = 0; i < MAX_MAZE_ITEMS; i++)
+            {
+                if (mazeItems[i].x != NULL)
+                    DrawRectangle(mazePosition.x + mazeItems[i].x * MAZE_DRAW_SCALE, mazePosition.y + mazeItems[i].y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, BLUE);
+            }
 
             // TODO: EXTRA: Draw pathfinding result, shorter path from start to end
 
             EndMode2D();
 
-            // TODO: Draw game UI (score, time...) using custom sprites/fonts
+            // DONE: Draw game UI (score, time...) using custom sprites/fonts
             // NOTE: Game UI does not receive the camera2d transformations,
             // it is drawn in screen space coordinates directly
+            // Draw Time Left
+            char *currentTime = TextFormat("Time Left: %.0f", timer.lifeTime - timer.currentTime);
+            DrawText(currentTime, 10, 30, 20, BLACK);
+
+            // Draw Current Points
+            char *currentScore = TextFormat("Score: %.0f", gameScore);
+            DrawText(currentScore, 10, 50, 20, BLACK);
         }
         break;
         case 1: // Game 3D mode
@@ -310,13 +388,27 @@ int main(void)
             mdlMaze.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texBiomes[currentBiome];
             DrawModel(mdlMaze, mdlPosition, 1.0f, WHITE);
 
-            // TODO: Maze items 3d draw (using 3d shape/model?) on required positions
+            // DONE: Maze items 3d draw (using 3d shape/model?) on required positions
+            for (int i = 0; i < MAX_MAZE_ITEMS; i++)
+            {
+                if (mazeItems[i].x != NULL)
+                {
+                    DrawCube((Vector3){mdlPosition.x + mazeItems[i].x, mdlPosition.y + 0.5f, mdlPosition.z + mazeItems[i].y}, 0.5f, 0.5f, 0.5f, BLUE);
+                }
+            }
 
             EndMode3D();
 
-            // TODO: Draw game UI (score, time...) using custom sprites/fonts
+            // DONE: Draw game UI (score, time...) using custom sprites/fonts
             // NOTE: Game UI does not receive the camera2d transformations,
             // it is drawn in screen space coordinates directly
+            // Draw Time Left
+            char *currentTime = TextFormat("Time Left: %.0f", timer.lifeTime - timer.currentTime);
+            DrawText(currentTime, 10, 30, 20, BLACK);
+
+            // Draw Current Points
+            char *currentScore = TextFormat("Score: %0f", gameScore);
+            DrawText(currentScore, 10, 50, 20, BLACK);
         }
         break;
         case 2: // Editor mode
@@ -328,8 +420,8 @@ int main(void)
             DrawRectangleLines(GetScreenWidth() / 2 - texMaze.width * MAZE_DRAW_SCALE / 2, GetScreenHeight() / 2 - texMaze.height * MAZE_DRAW_SCALE / 2, MAZE_WIDTH * MAZE_DRAW_SCALE, MAZE_HEIGHT * MAZE_DRAW_SCALE, RED);
 
             // Draw Mouse Position if in bounds
-            if (mouseCell.x >= 0 && mouseCell.x < MAZE_WIDTH && mouseCell.y >= 0 && mouseCell.y < MAZE_HEIGHT)
-                DrawRectangleLines(mazePosition.x + mouseCell.x * MAZE_DRAW_SCALE, mazePosition.y + mouseCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, BLUE);
+            if (selectedCell.x >= 0 && selectedCell.x < MAZE_WIDTH && selectedCell.y >= 0 && selectedCell.y < MAZE_HEIGHT)
+                DrawRectangleLines(mazePosition.x + selectedCell.x * MAZE_DRAW_SCALE, mazePosition.y + selectedCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, BLUE);
 
             // DONE: Draw player using a rectangle, consider maze screen coordinates!
             DrawRectangle(mazePosition.x + playerCell.x * MAZE_DRAW_SCALE, mazePosition.y + playerCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, GREEN);
