@@ -37,6 +37,14 @@ typedef struct Timer
     double lifeTime;
 } Timer;
 
+typedef struct Node
+{
+    int x, y;            // Coordinates of the node
+    int g;               // Cost from start node to current node
+    int h;               // Heuristic cost from current node to end node
+    struct Node *parent; // Pointer to the parent node
+} Node;
+
 // Generate procedural maze image, using grid-based algorithm
 // NOTE: Functions defined as static are internal to the module
 static Image GenImageMaze(int width, int height, float skipChance);
@@ -62,7 +70,7 @@ int main(void)
 
     // Random seed defines the random numbers generation,
     // always the same if using the same seed
-    // SetRandomSeed(67218);
+    SetRandomSeed(67218);
 
     // Generate maze image using the grid-based generator
     // DONE: [1p] Improve function to support extra configuration parameters
@@ -123,9 +131,27 @@ int main(void)
 
     mdlMaze.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texBiomes[0];
 
-    // TODO: Define all variables required for game UI elements (sprites, fonts...)
+    // DONE: Define all variables required for game UI elements (sprites, fonts...)
 
-    // TODO: Define all variables required for UI editor (raygui)
+    // DONE: Define all variables required for UI editor (raygui)
+    Rectangle rowSpaceRec = (Rectangle){GetScreenWidth() - 150, 40, 120, 20};
+    int spacingRows = 3;
+    Rectangle colSpaceRec = (Rectangle){GetScreenWidth() - 150, 60, 120, 20};
+    int spacingCols = 3;
+    Rectangle seedRec = (Rectangle){GetScreenWidth() - 150, 80, 120, 20};
+    int seed = 67218;
+    Rectangle skipRec = (Rectangle){GetScreenWidth() - 150, 100, 120, 20};
+    int skipChance = 75;
+    Rectangle buttonRec = (Rectangle){GetScreenWidth() - 150, 120, 120, 20};
+    bool editRowSpace = false;
+    bool editColSpace = false;
+    bool editSeed = false;
+    bool editSkipChance = false;
+
+    // Check if A* calc is needed
+    bool isAStarCalculated = false;
+    int aStarPointCount = 0;
+    Point *pathAStar = NULL;
 
     SetTargetFPS(60);      // Set our game to run at 60 frames-per-second
     bool exitGame = false; // Game exit handler
@@ -252,10 +278,14 @@ int main(void)
             selectedCell.x = (mousePos.x - (GetScreenWidth() / 2 - texMaze.width * MAZE_DRAW_SCALE / 2)) / MAZE_DRAW_SCALE;
             selectedCell.y = (mousePos.y - (GetScreenHeight() / 2 - texMaze.height * MAZE_DRAW_SCALE / 2)) / MAZE_DRAW_SCALE;
 
+            bool updateMap = false;
             if (selectedCell.x >= 0 && selectedCell.x < MAZE_WIDTH && selectedCell.y >= 0 && selectedCell.y < MAZE_HEIGHT)
             {
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+                {
                     ImageDrawPixel(&imMaze, selectedCell.x, selectedCell.y, WHITE);
+                    updateMap = true;
+                }
                 else if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
                 {
                     ImageDrawPixel(&imMaze, selectedCell.x, selectedCell.y, BLACK);
@@ -265,14 +295,9 @@ int main(void)
                         if (selectedCell.x == mazeItems[i].x && selectedCell.y == mazeItems[i].y)
                             mazeItems[i] = (Point){NULL};
                     }
+                    updateMap = true;
                 }
             }
-
-            // Reload texture and model
-            UnloadTexture(texMaze);
-            texMaze = LoadTextureFromImage(imMaze);
-            UnloadMesh(meshMaze);
-            meshMaze = GenMeshCubicmap(imMaze, (Vector3){1.0f, 1.0f, 1.0f});
 
             // DONE: [2p] Collectible map items: player score
             // Using same mechanism than map editor, implement an items editor, registering
@@ -295,8 +320,18 @@ int main(void)
                         ImageDrawPixel(&imMaze, selectedCell.x, selectedCell.y, BLUE);
                         mazeItems[pos] = (Point){selectedCell.x, selectedCell.y};
                         mazeItemPicked[pos] = false;
+                        updateMap = true;
                     }
                 }
+            }
+
+            // Reload texture and model
+            if (updateMap)
+            {
+                UnloadTexture(texMaze);
+                texMaze = LoadTextureFromImage(imMaze);
+                UnloadMesh(meshMaze);
+                meshMaze = GenMeshCubicmap(imMaze, (Vector3){1.0f, 1.0f, 1.0f});
             }
         }
         break;
@@ -318,6 +353,11 @@ int main(void)
 
         // TODO: EXTRA: Calculate shorter path between startCell (or playerCell) to endCell (A* algorithm)
         // NOTE: Calculation can be costly, only do it if startCell/playerCell or endCell change
+        if (!isAStarCalculated)
+        {
+            pathAStar = LoadPathAStar(imMaze, startCell, endCell, aStarPointCount);
+            isAStarCalculated = true;
+        }
 
         //----------------------------------------------------------------------------------
 
@@ -364,9 +404,14 @@ int main(void)
             }
 
             // TODO: EXTRA: Draw pathfinding result, shorter path from start to end
+            for (int i = 0; i < aStarPointCount; i++)
+            {
+                DrawRectangle(mazePosition.x + pathAStar[i].x * MAZE_DRAW_SCALE, mazePosition.y + pathAStar[i].y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, PURPLE);
+            }
 
             EndMode2D();
 
+            DrawText(TextFormat("astar Positions: %.0f", (double)aStarPointCount), 10, 80, 20, BLACK);
             // DONE: Draw game UI (score, time...) using custom sprites/fonts
             // NOTE: Game UI does not receive the camera2d transformations,
             // it is drawn in screen space coordinates directly
@@ -407,7 +452,7 @@ int main(void)
             DrawText(currentTime, 10, 30, 20, BLACK);
 
             // Draw Current Points
-            char *currentScore = TextFormat("Score: %0f", gameScore);
+            char *currentScore = TextFormat("Score: %.0f", gameScore);
             DrawText(currentScore, 10, 50, 20, BLACK);
         }
         break;
@@ -429,9 +474,26 @@ int main(void)
             // End cell drawn in red in order to see finish position
             DrawRectangle(mazePosition.x + endCell.x * MAZE_DRAW_SCALE, mazePosition.y + endCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, RED);
 
-            // TODO: Draw editor UI required elements -> TIP: raygui immediate mode UI
+            // DONE: Draw editor UI required elements -> TIP: raygui immediate mode UI
             // NOTE: In immediate-mode UI, logic and drawing is defined together
             // REFERENCE: https://github.com/raysan5/raygui
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+            {
+                editRowSpace = CheckCollisionPointRec(GetMousePosition(), rowSpaceRec);
+                editColSpace = CheckCollisionPointRec(GetMousePosition(), colSpaceRec);
+                editSeed = CheckCollisionPointRec(GetMousePosition(), seedRec);
+                editSkipChance = CheckCollisionPointRec(GetMousePosition(), skipRec);
+            }
+            GuiSpinner(rowSpaceRec, "Row Spacing", &spacingRows, 1, 8, editRowSpace);
+            GuiSpinner(colSpaceRec, "Column Spacing", &spacingCols, 1, 8, editColSpace);
+            GuiValueBox(seedRec, "Seed", &seed, 0, 99999, editSeed);
+            GuiValueBox(skipRec, "Skip Chance", &skipChance, 0, 100, editSkipChance);
+            if (GuiButton(buttonRec, "Generate"))
+            {
+                SetRandomSeed(seed);
+                imMaze = GenImageMazeEx(MAZE_WIDTH, MAZE_HEIGHT, spacingRows, spacingCols, (float)skipChance / 100);
+                pathAStar = LoadPathAStar(imMaze, startCell, endCell, aStarPointCount);
+            }
         }
         break;
         default:
@@ -449,7 +511,7 @@ int main(void)
     UnloadTexture(texMaze); // Unload maze texture from VRAM (GPU)
     UnloadImage(imMaze);    // Unload maze image from RAM (CPU)
 
-    // TODO: Unload all loaded resources
+    // DONE: Unload all loaded resources
 
     CloseWindow(); // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
@@ -621,7 +683,7 @@ static Image GenImageMazeEx(int width, int height, int spacingRows, int spacingC
 // NOTE: The functions returns an array of points and the pointCount
 static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
 {
-    Point *path = NULL;
+    Point *path = (Point *)malloc(map.height * map.width * sizeof(Point *));
     int pathCounter = 0;
 
     // PathNode struct definition
@@ -637,7 +699,77 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
 
     // TODO: Implement A* algorithm logic
     // NOTE: This function must be self-contained!
+    // Initialize the start and end nodes
+    PathNode startNode = {start, 0, 0, NULL};
+    PathNode endNode = {end, 0, 0, NULL};
 
-    *pointCount = pathCounter; // Return number of path points
-    return path;               // Return path array (dynamically allocated)
+    int frontierSize = 0;
+    PathNode *frontier = (PathNode *)malloc(map.height * map.width * sizeof(PathNode *));
+    frontier[frontierSize] = startNode;
+    frontierSize++;
+    int reachedSize = 0;
+    PathNode *reached = (PathNode *)malloc(map.height * map.width * sizeof(PathNode *));
+    reached[reachedSize] = startNode;
+    reachedSize++;
+
+    // Get all nodes in
+    while (frontierSize > 0)
+    {
+        frontierSize--;
+        PathNode currentNode = frontier[frontierSize];
+
+        // Get neighbors of the current node
+        Point neighbors[4] = {
+            {currentNode.p.x + 1, currentNode.p.y},
+            {currentNode.p.x - 1, currentNode.p.y},
+            {currentNode.p.x, currentNode.p.y + 1},
+            {currentNode.p.x, currentNode.p.y - 1},
+        };
+
+        // Set all 4 neighbors as sons of the current node and save them to both Node Paths
+        for (int i = 0; i < 4; i++)
+        {
+            PathNode neighbor = {neighbors[i], 0, 0, &currentNode};
+
+            bool isValid = (neighbor.p.x >= 0) && (neighbor.p.y >= 0) && (neighbor.p.x < map.width) && (neighbor.p.y < map.height) && (GetImageColor(map, neighbor.p.x, neighbor.p.y).r == 0);
+            if (isValid)
+            {
+                bool isInReached = false;
+                for (int j = 0; j < reachedSize; j++)
+                {
+                    if ((reached[j].p.x == neighbor.p.x) && (reached[j].p.y == neighbor.p.y))
+                    {
+                        isInReached = true;
+                        break;
+                    }
+                }
+
+                if (!isInReached)
+                {
+                    reached[reachedSize] = neighbor;
+                    reachedSize++;
+                    frontier[frontierSize] = neighbor;
+                    frontierSize++;
+                }
+            }
+        }
+    }
+
+    Point current = endNode.p;
+    while (current.x != startNode.p.x || current.y != startNode.p.y)
+    {
+        for (int i = 0; i < reachedSize; i++)
+        {
+            if ((current.x == reached[i].p.x) && (current.y == reached[i].p.y))
+            {
+                path[pathCounter] = current;
+                pathCounter++;
+                current = reached[i].parent->p;
+                break;
+            }
+        }
+    }
+
+    pointCount = pathCounter; // Return number of path points
+    return path;              // Return path array (dynamically allocated)
 }

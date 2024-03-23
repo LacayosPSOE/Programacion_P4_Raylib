@@ -8,5 +8,8 @@
 		"**/*.o": true,
 		"**/*.exe": true,
 	},
-	"todo-tree.tree.showBadges": true
+	"todo-tree.tree.showBadges": true,
+	"files.associations": {
+		"*.m": "c"
+	}
 }
