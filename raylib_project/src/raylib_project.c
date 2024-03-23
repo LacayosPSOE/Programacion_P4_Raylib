@@ -12,6 +12,7 @@
  ********************************************************************************************/
 
 #include "raylib.h"
+
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h" // Required for immediate-mode UI elements
 
@@ -38,7 +39,6 @@ typedef struct Timer
 
 // Generate procedural maze image, using grid-based algorithm
 // NOTE: Functions defined as static are internal to the module
-static Image GenImageMaze(int width, int height, float skipChance);
 static Image GenImageMazeEx(int width, int height, int spacingRows, int spacingCols, float skipChance);
 
 // Get shorter path between two points, implements pathfinding algorithm: A*
@@ -138,9 +138,10 @@ int main(void)
     bool editColSpace = false;
     bool editSeed = false;
     bool editSkipChance = false;
+    bool updateMap = false;
 
     // Check if A* calc is needed
-    bool isAStarCalculated = false;
+    bool isAStarCalculated = true;
     int aStarPointCount = 0;
     Point *pathAStar = NULL;
 
@@ -152,7 +153,6 @@ int main(void)
     Timer timer;
     timer.currentTime = 0;
     timer.lifeTime = 120;
-    // Max game time in seconds
     //--------------------------------------------------------------------------------------
 
     // Main game loop
@@ -269,7 +269,6 @@ int main(void)
             selectedCell.x = (mousePos.x - (GetScreenWidth() / 2 - texMaze.width * MAZE_DRAW_SCALE / 2)) / MAZE_DRAW_SCALE;
             selectedCell.y = (mousePos.y - (GetScreenHeight() / 2 - texMaze.height * MAZE_DRAW_SCALE / 2)) / MAZE_DRAW_SCALE;
 
-            bool updateMap = false;
             if (selectedCell.x >= 0 && selectedCell.x < MAZE_WIDTH && selectedCell.y >= 0 && selectedCell.y < MAZE_HEIGHT)
             {
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
@@ -323,6 +322,7 @@ int main(void)
                 texMaze = LoadTextureFromImage(imMaze);
                 UnloadMesh(meshMaze);
                 meshMaze = GenMeshCubicmap(imMaze, (Vector3){1.0f, 1.0f, 1.0f});
+                updateMap = false;
             }
         }
         break;
@@ -342,7 +342,7 @@ int main(void)
         else if (IsKeyPressed(KEY_FOUR))
             currentBiome = 3;
 
-        // DONE: EXTRA: Calculate shorter path between startCell (or playerCell) to endCell (A* algorithm)
+        // TODO: EXTRA: Calculate shorter path between startCell (or playerCell) to endCell (A* algorithm)
         // NOTE: Calculation can be costly, only do it if startCell/playerCell or endCell change
         if (!isAStarCalculated)
         {
@@ -402,7 +402,6 @@ int main(void)
 
             EndMode2D();
 
-            DrawText(TextFormat("astar Positions: %.0f", (double)aStarPointCount), 10, 80, 20, BLACK);
             // DONE: Draw game UI (score, time...) using custom sprites/fonts
             // NOTE: Game UI does not receive the camera2d transformations,
             // it is drawn in screen space coordinates directly
@@ -483,7 +482,8 @@ int main(void)
             {
                 SetRandomSeed(seed);
                 imMaze = GenImageMazeEx(MAZE_WIDTH, MAZE_HEIGHT, spacingRows, spacingCols, (float)skipChance / 100);
-                pathAStar = LoadPathAStar(imMaze, startCell, endCell, &aStarPointCount);
+                isAStarCalculated = false;
+                updateMap = true;
             }
         }
         break;
@@ -502,8 +502,6 @@ int main(void)
     UnloadTexture(texMaze); // Unload maze texture from VRAM (GPU)
     UnloadImage(imMaze);    // Unload maze image from RAM (CPU)
 
-    // DONE: Unload all loaded resources
-
     CloseWindow(); // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
 
@@ -512,7 +510,7 @@ int main(void)
 
 // Generate procedural maze image, using grid-based algorithm
 // NOTE: Black=Walkable cell, White=Wall/Block cell
-static Image GenImageMaze(int width, int height, float skipChance)
+static Image GenImageMazeEx(int width, int height, int spacingRows, int spacingCols, float skipChance)
 {
     // Generate image of plain color (BLACK)
     Image imMaze = GenImageColor(width, height, BLACK);
@@ -535,7 +533,7 @@ static Image GenImageMaze(int width, int height, float skipChance)
             else
             {
                 // Check pixel module to set maze corridors width and height
-                if ((x % 3 == 0) && (y % 3 == 0))
+                if ((x % spacingCols == 0) && (y % spacingRows == 0))
                 {
                     // Get change to define a point for further processing
                     float chance = (float)GetRandomValue(0, 100) / 100.0f;
@@ -591,85 +589,6 @@ static Image GenImageMaze(int width, int height, float skipChance)
     return imMaze;
 }
 
-static Image GenImageMazeEx(int width, int height, int spacingRows, int spacingCols, float skipChance)
-{
-    // Generate image of plain color (BLACK)
-    Image maze = GenImageColor(width, height, BLACK);
-
-    // Allocate an array of point used for maze generation
-    // NOTE: Dynamic array allocation, memory allocated in HEAP (MAX: Available RAM)
-    Point *mazePoints = (Point *)malloc(MAZE_WIDTH * MAZE_HEIGHT * sizeof(Point));
-    int mazePointsCounter = 0;
-
-    // Start traversing image data, line by line, to paint our maze
-    for (int y = 0; y < maze.height; y++)
-    {
-        for (int x = 0; x < maze.width; x++)
-        {
-            // Check image borders (1 px)
-            if ((x == 0) || (x == (maze.width - 1)) || (y == 0) || (y == (maze.height - 1)))
-            {
-                ImageDrawPixel(&maze, x, y, WHITE); // Image border pixels set to WHITE
-            }
-            else
-            {
-                // Check pixel module to set maze corridors width and height
-                if ((x % spacingCols == 0) && (y % spacingRows == 0))
-                {
-                    // Get change to define a point for further processing
-                    float chance = (float)GetRandomValue(0, 100) / 100.0f;
-
-                    if (chance >= skipChance)
-                    {
-                        // Set point as wall...
-                        ImageDrawPixel(&maze, x, y, WHITE);
-
-                        // ...save point for further processing
-                        mazePoints[mazePointsCounter] = (Point){x, y};
-                        mazePointsCounter++;
-                    }
-                }
-            }
-        }
-    }
-
-    // Define an array of 4 directions for convenience
-    Point directions[4] = {
-        {0, -1}, // Up
-        {0, 1},  // Down
-        {-1, 0}, // Left
-        {1, 0},  // Right
-    };
-
-    // Load a random sequence of points, to be used as indices, so,
-    // we can access mazePoints[] randomly indexed, instead of following the order we gor them
-    int *pointIndices = LoadRandomSequence(mazePointsCounter, 0, mazePointsCounter - 1);
-
-    // Process every random maze point, moving in one random direction,
-    // until we collision with another wall (WHITE pixel)
-    for (int i = 0; i < mazePointsCounter; i++)
-    {
-        Point currentPoint = mazePoints[pointIndices[i]];
-        Point currentDir = directions[GetRandomValue(0, 3)];
-        currentPoint.x += currentDir.x;
-        currentPoint.y += currentDir.y;
-
-        // Keep incrementing wall in selected direction until a WHITE pixel is found
-        // NOTE: We only check against the color.r component
-        while (GetImageColor(maze, currentPoint.x, currentPoint.y).r != 255)
-        {
-            ImageDrawPixel(&maze, currentPoint.x, currentPoint.y, WHITE);
-
-            currentPoint.x += currentDir.x;
-            currentPoint.y += currentDir.y;
-        }
-    }
-
-    UnloadRandomSequence(pointIndices);
-
-    return maze;
-}
-
 // TODO: EXTRA: [10p] Get shorter path between two points, implements pathfinding algorithm: A*
 // NOTE: The functions returns an array of points and the pointCount
 static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
@@ -698,7 +617,6 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
     PathNode *frontier = (PathNode *)malloc(map.height * map.width * sizeof(PathNode *));
     frontier[frontierSize] = startNode;
     frontierSize++;
-
     int reachedSize = 0;
     PathNode *reached = (PathNode *)malloc(map.height * map.width * sizeof(PathNode *));
     reached[reachedSize] = startNode;
@@ -707,15 +625,12 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
     // Get all nodes in
     while (frontierSize > 0)
     {
-        // unqueue first item
         PathNode currentNode = frontier[0];
-        for (int i = 0; i < frontierSize - 1; i++){
-            frontier[i] = frontier[i+1];
+        for (int i = 0; i < frontierSize - 1; i++)
+        {
+            frontier[i] = frontier[i + 1];
         }
         frontierSize--;
-
-        if ((currentNode.p.x == endNode.p.x) && (currentNode.p.y == endNode.p.y))
-            break;
 
         // Get neighbors of the current node
         Point neighbors[4] = {
@@ -730,9 +645,8 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
         {
             PathNode neighbor = {neighbors[i], 0, 0, NULL};
 
-            bool isValid = (neighbor.p.x >= 0) && (neighbor.p.y >= 0) && (neighbor.p.x < map.width) && (neighbor.p.y < map.height);
-            bool isFloor = GetImageColor(map, neighbor.p.x, neighbor.p.y).r == 0;
-            if (isValid && isFloor)
+            bool isValid = (neighbor.p.x >= 0) && (neighbor.p.y >= 0) && (neighbor.p.x < map.width) && (neighbor.p.y < map.height) && (GetImageColor(map, neighbor.p.x, neighbor.p.y).r == 0);
+            if (isValid)
             {
                 bool isInReached = false;
                 for (int j = 0; j < reachedSize; j++)
@@ -746,37 +660,21 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
 
                 if (!isInReached)
                 {
+                    reached[reachedSize] = neighbor;
                     for (int j = 0; j < reachedSize; j++)
                     {
                         if ((reached[j].p.x == currentNode.p.x) && (reached[j].p.y == currentNode.p.y))
                         {
-                            neighbor.parent = &reached[j];
+                            reached[reachedSize].parent = &reached[j];
                             break;
                         }
                     }
-                    reached[reachedSize] = neighbor;
                     reachedSize++;
                     frontier[frontierSize] = neighbor;
                     frontierSize++;
                 }
             }
         }
-
-        // Sort frontier array descending by g value
-        // for (int i = 0; i < frontierSize; i++)
-        // {
-        //     int maxIndex = frontier[i].gvalue;
-        //     for (int j = 0; j < frontierSize; j++)
-        //     {
-        //         if (frontier[j].gvalue > frontier[maxIndex].gvalue)
-        //             maxIndex = j;
-        //     }
-
-        //     // Change node on i position with the node with maximum g value
-        //     PathNode j = frontier[i];
-        //     frontier[i] = frontier[maxIndex];
-        //     frontier[maxIndex] = j;
-        // }
     }
 
     Point current = endNode.p;
