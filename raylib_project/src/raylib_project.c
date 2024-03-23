@@ -707,7 +707,12 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
     // Get all nodes in
     while (frontierSize > 0)
     {
+        // unqueue first item
         PathNode currentNode = frontier[0];
+        for (int i = 0; i < frontierSize - 1; i++){
+            frontier[i] = frontier[i+1];
+        }
+        frontierSize--;
 
         if ((currentNode.p.x == endNode.p.x) && (currentNode.p.y == endNode.p.y))
             break;
@@ -757,11 +762,21 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
             }
         }
 
-        for (int i = 0; i < frontierSize - 1; i++)
-        {
-            frontier[i] = frontier[i + 1];
-        }
-        frontierSize--;
+        // Sort frontier array descending by g value
+        // for (int i = 0; i < frontierSize; i++)
+        // {
+        //     int maxIndex = frontier[i].gvalue;
+        //     for (int j = 0; j < frontierSize; j++)
+        //     {
+        //         if (frontier[j].gvalue > frontier[maxIndex].gvalue)
+        //             maxIndex = j;
+        //     }
+
+        //     // Change node on i position with the node with maximum g value
+        //     PathNode j = frontier[i];
+        //     frontier[i] = frontier[maxIndex];
+        //     frontier[maxIndex] = j;
+        // }
     }
 
     Point current = endNode.p;
