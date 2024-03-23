@@ -12,7 +12,6 @@
  ********************************************************************************************/
 
 #include "raylib.h"
-
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h" // Required for immediate-mode UI elements
 
@@ -36,14 +35,6 @@ typedef struct Timer
     double currentTime;
     double lifeTime;
 } Timer;
-
-typedef struct Node
-{
-    int x, y;            // Coordinates of the node
-    int g;               // Cost from start node to current node
-    int h;               // Heuristic cost from current node to end node
-    struct Node *parent; // Pointer to the parent node
-} Node;
 
 // Generate procedural maze image, using grid-based algorithm
 // NOTE: Functions defined as static are internal to the module
@@ -351,7 +342,7 @@ int main(void)
         else if (IsKeyPressed(KEY_FOUR))
             currentBiome = 3;
 
-        // TODO: EXTRA: Calculate shorter path between startCell (or playerCell) to endCell (A* algorithm)
+        // DONE: EXTRA: Calculate shorter path between startCell (or playerCell) to endCell (A* algorithm)
         // NOTE: Calculation can be costly, only do it if startCell/playerCell or endCell change
         if (!isAStarCalculated)
         {
@@ -403,7 +394,7 @@ int main(void)
                     DrawRectangle(mazePosition.x + mazeItems[i].x * MAZE_DRAW_SCALE, mazePosition.y + mazeItems[i].y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, BLUE);
             }
 
-            // TODO: EXTRA: Draw pathfinding result, shorter path from start to end
+            // DONE: EXTRA: Draw pathfinding result, shorter path from start to end
             for (int i = 1; i < aStarPointCount; i++)
             {
                 DrawRectangle(mazePosition.x + pathAStar[i].x * MAZE_DRAW_SCALE, mazePosition.y + pathAStar[i].y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, PURPLE);
@@ -492,7 +483,7 @@ int main(void)
             {
                 SetRandomSeed(seed);
                 imMaze = GenImageMazeEx(MAZE_WIDTH, MAZE_HEIGHT, spacingRows, spacingCols, (float)skipChance / 100);
-                pathAStar = LoadPathAStar(imMaze, startCell, endCell, aStarPointCount);
+                pathAStar = LoadPathAStar(imMaze, startCell, endCell, &aStarPointCount);
             }
         }
         break;
@@ -707,6 +698,7 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
     PathNode *frontier = (PathNode *)malloc(map.height * map.width * sizeof(PathNode *));
     frontier[frontierSize] = startNode;
     frontierSize++;
+
     int reachedSize = 0;
     PathNode *reached = (PathNode *)malloc(map.height * map.width * sizeof(PathNode *));
     reached[reachedSize] = startNode;
@@ -715,8 +707,10 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
     // Get all nodes in
     while (frontierSize > 0)
     {
-        frontierSize--;
-        PathNode currentNode = frontier[frontierSize];
+        PathNode currentNode = frontier[0];
+
+        if ((currentNode.p.x == endNode.p.x) && (currentNode.p.y == endNode.p.y))
+            break;
 
         // Get neighbors of the current node
         Point neighbors[4] = {
@@ -731,8 +725,9 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
         {
             PathNode neighbor = {neighbors[i], 0, 0, NULL};
 
-            bool isValid = (neighbor.p.x >= 0) && (neighbor.p.y >= 0) && (neighbor.p.x < map.width) && (neighbor.p.y < map.height) && (GetImageColor(map, neighbor.p.x, neighbor.p.y).r == 0);
-            if (isValid)
+            bool isValid = (neighbor.p.x >= 0) && (neighbor.p.y >= 0) && (neighbor.p.x < map.width) && (neighbor.p.y < map.height);
+            bool isFloor = GetImageColor(map, neighbor.p.x, neighbor.p.y).r == 0;
+            if (isValid && isFloor)
             {
                 bool isInReached = false;
                 for (int j = 0; j < reachedSize; j++)
@@ -746,21 +741,27 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
 
                 if (!isInReached)
                 {
-                    reached[reachedSize] = neighbor;
                     for (int j = 0; j < reachedSize; j++)
                     {
                         if ((reached[j].p.x == currentNode.p.x) && (reached[j].p.y == currentNode.p.y))
                         {
-                            reached[reachedSize].parent = &reached[j];
+                            neighbor.parent = &reached[j];
                             break;
                         }
                     }
+                    reached[reachedSize] = neighbor;
                     reachedSize++;
                     frontier[frontierSize] = neighbor;
                     frontierSize++;
                 }
             }
         }
+
+        for (int i = 0; i < frontierSize - 1; i++)
+        {
+            frontier[i] = frontier[i + 1];
+        }
+        frontierSize--;
     }
 
     Point current = endNode.p;
@@ -779,5 +780,5 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
     }
 
     *pointCount = pathCounter; // Return number of path points
-    return path;              // Return path array (dynamically allocated)
+    return path;               // Return path array (dynamically allocated)
 }
