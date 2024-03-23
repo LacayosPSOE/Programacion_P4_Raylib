@@ -170,7 +170,7 @@ int main(void)
         // Update
         //----------------------------------------------------------------------------------
         // Check if game exits
-        exitGame = timer.currentTime >= timer.lifeTime;
+        exitGame = exitGame || timer.currentTime >= timer.lifeTime;
         if (exitGame)
             break;
 
@@ -355,7 +355,7 @@ int main(void)
         // NOTE: Calculation can be costly, only do it if startCell/playerCell or endCell change
         if (!isAStarCalculated)
         {
-            pathAStar = LoadPathAStar(imMaze, startCell, endCell, aStarPointCount);
+            pathAStar = LoadPathAStar(imMaze, startCell, endCell, &aStarPointCount);
             isAStarCalculated = true;
         }
 
@@ -404,7 +404,7 @@ int main(void)
             }
 
             // TODO: EXTRA: Draw pathfinding result, shorter path from start to end
-            for (int i = 0; i < aStarPointCount; i++)
+            for (int i = 1; i < aStarPointCount; i++)
             {
                 DrawRectangle(mazePosition.x + pathAStar[i].x * MAZE_DRAW_SCALE, mazePosition.y + pathAStar[i].y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, PURPLE);
             }
@@ -720,16 +720,16 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
 
         // Get neighbors of the current node
         Point neighbors[4] = {
-            {currentNode.p.x + 1, currentNode.p.y},
+            {currentNode.p.x, currentNode.p.y - 1},
             {currentNode.p.x - 1, currentNode.p.y},
             {currentNode.p.x, currentNode.p.y + 1},
-            {currentNode.p.x, currentNode.p.y - 1},
+            {currentNode.p.x + 1, currentNode.p.y},
         };
 
         // Set all 4 neighbors as sons of the current node and save them to both Node Paths
         for (int i = 0; i < 4; i++)
         {
-            PathNode neighbor = {neighbors[i], 0, 0, &currentNode};
+            PathNode neighbor = {neighbors[i], 0, 0, NULL};
 
             bool isValid = (neighbor.p.x >= 0) && (neighbor.p.y >= 0) && (neighbor.p.x < map.width) && (neighbor.p.y < map.height) && (GetImageColor(map, neighbor.p.x, neighbor.p.y).r == 0);
             if (isValid)
@@ -747,6 +747,14 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
                 if (!isInReached)
                 {
                     reached[reachedSize] = neighbor;
+                    for (int j = 0; j < reachedSize; j++)
+                    {
+                        if ((reached[j].p.x == currentNode.p.x) && (reached[j].p.y == currentNode.p.y))
+                        {
+                            reached[reachedSize].parent = &reached[j];
+                            break;
+                        }
+                    }
                     reachedSize++;
                     frontier[frontierSize] = neighbor;
                     frontierSize++;
@@ -770,6 +778,6 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
         }
     }
 
-    pointCount = pathCounter; // Return number of path points
+    *pointCount = pathCounter; // Return number of path points
     return path;              // Return path array (dynamically allocated)
 }
