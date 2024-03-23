@@ -594,7 +594,7 @@ static Image GenImageMaze(int width, int height, float skipChance)
 static Image GenImageMazeEx(int width, int height, int spacingRows, int spacingCols, float skipChance)
 {
     // Generate image of plain color (BLACK)
-    Image imMaze = GenImageColor(width, height, BLACK);
+    Image maze = GenImageColor(width, height, BLACK);
 
     // Allocate an array of point used for maze generation
     // NOTE: Dynamic array allocation, memory allocated in HEAP (MAX: Available RAM)
@@ -602,14 +602,14 @@ static Image GenImageMazeEx(int width, int height, int spacingRows, int spacingC
     int mazePointsCounter = 0;
 
     // Start traversing image data, line by line, to paint our maze
-    for (int y = 0; y < imMaze.height; y++)
+    for (int y = 0; y < maze.height; y++)
     {
-        for (int x = 0; x < imMaze.width; x++)
+        for (int x = 0; x < maze.width; x++)
         {
             // Check image borders (1 px)
-            if ((x == 0) || (x == (imMaze.width - 1)) || (y == 0) || (y == (imMaze.height - 1)))
+            if ((x == 0) || (x == (maze.width - 1)) || (y == 0) || (y == (maze.height - 1)))
             {
-                ImageDrawPixel(&imMaze, x, y, WHITE); // Image border pixels set to WHITE
+                ImageDrawPixel(&maze, x, y, WHITE); // Image border pixels set to WHITE
             }
             else
             {
@@ -622,7 +622,7 @@ static Image GenImageMazeEx(int width, int height, int spacingRows, int spacingC
                     if (chance >= skipChance)
                     {
                         // Set point as wall...
-                        ImageDrawPixel(&imMaze, x, y, WHITE);
+                        ImageDrawPixel(&maze, x, y, WHITE);
 
                         // ...save point for further processing
                         mazePoints[mazePointsCounter] = (Point){x, y};
@@ -656,9 +656,9 @@ static Image GenImageMazeEx(int width, int height, int spacingRows, int spacingC
 
         // Keep incrementing wall in selected direction until a WHITE pixel is found
         // NOTE: We only check against the color.r component
-        while (GetImageColor(imMaze, currentPoint.x, currentPoint.y).r != 255)
+        while (GetImageColor(maze, currentPoint.x, currentPoint.y).r != 255)
         {
-            ImageDrawPixel(&imMaze, currentPoint.x, currentPoint.y, WHITE);
+            ImageDrawPixel(&maze, currentPoint.x, currentPoint.y, WHITE);
 
             currentPoint.x += currentDir.x;
             currentPoint.y += currentDir.y;
@@ -667,7 +667,7 @@ static Image GenImageMazeEx(int width, int height, int spacingRows, int spacingC
 
     UnloadRandomSequence(pointIndices);
 
-    return imMaze;
+    return maze;
 }
 
 // TODO: EXTRA: [10p] Get shorter path between two points, implements pathfinding algorithm: A*
