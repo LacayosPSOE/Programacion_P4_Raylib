@@ -644,22 +644,23 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
         // Set all 4 neighbors as sons of the current node and save them to both Node Paths
         for (int i = 0; i < 4; i++)
         {
-            PathNode neighbor = {neighbors[i], 0, 0, NULL};
+            PathNode neighbor = {neighbors[i], currentNode.gvalue + 1, 0, NULL};
 
             bool isValid = (neighbor.p.x >= 0) && (neighbor.p.y >= 0) && (neighbor.p.x < map.width) && (neighbor.p.y < map.height) && (GetImageColor(map, neighbor.p.x, neighbor.p.y).r == 0);
             if (isValid)
             {
-                bool isInReached = false;
+                int isInReached = -1;
                 for (int j = 0; j < reachedSize; j++)
                 {
                     if ((reached[j].p.x == neighbor.p.x) && (reached[j].p.y == neighbor.p.y))
                     {
-                        isInReached = true;
+                        isInReached = j;
                         break;
                     }
                 }
 
-                if (!isInReached)
+                bool saveNeighbor = false;
+                if ((isInReached == -1) || (neighbor.gvalue < reached[isInReached].gvalue))
                 {
                     reached[reachedSize] = neighbor;
                     for (int j = 0; j < reachedSize; j++)
@@ -675,6 +676,22 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
                     frontierSize++;
                 }
             }
+        }
+
+        // Reorder frontier array by gValue descending
+        for (int i = 0; i < frontierSize; i++)
+        {
+            int maxGIndex = i;
+            for (int j = 0; j < frontierSize; j++)
+            {
+                if (frontier[maxGIndex].gvalue < frontier[j].gvalue)
+                {
+                    maxGIndex = j;
+                }
+            }
+            PathNode aux = frontier[i];
+            frontier[i] = frontier[maxGIndex];
+            frontier[maxGIndex] = aux;
         }
     }
 
