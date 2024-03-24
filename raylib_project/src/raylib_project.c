@@ -141,7 +141,7 @@ int main(void)
     bool updateMap = false;
 
     // Check if A* calc is needed
-    bool isAStarCalculated = true;
+    bool isAStarCalculated = false;
     int aStarPointCount = 0;
     Point *pathAStar = NULL;
 
@@ -381,9 +381,6 @@ int main(void)
                 }
             }
 
-            // DONE: Draw player rectangle or sprite at player position
-            DrawRectangle(mazePosition.x + playerCell.x * MAZE_DRAW_SCALE, mazePosition.y + playerCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, GREEN);
-
             // End cell drawn in red in order to see finish position
             DrawRectangle(mazePosition.x + endCell.x * MAZE_DRAW_SCALE, mazePosition.y + endCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, RED);
 
@@ -399,6 +396,9 @@ int main(void)
             {
                 DrawRectangle(mazePosition.x + pathAStar[i].x * MAZE_DRAW_SCALE, mazePosition.y + pathAStar[i].y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, PURPLE);
             }
+
+            // DONE: Draw player rectangle or sprite at player position
+            DrawRectangle(mazePosition.x + playerCell.x * MAZE_DRAW_SCALE, mazePosition.y + playerCell.y * MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, MAZE_DRAW_SCALE, GREEN);
 
             EndMode2D();
 
@@ -614,17 +614,18 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
     PathNode endNode = {end, 0, 0, NULL};
 
     int frontierSize = 0;
-    PathNode *frontier = (PathNode *)malloc(map.height * map.width * sizeof(PathNode *));
+    PathNode *frontier = (PathNode *)malloc(map.height * map.width * sizeof(PathNode));
     frontier[frontierSize] = startNode;
     frontierSize++;
     int reachedSize = 0;
-    PathNode *reached = (PathNode *)malloc(map.height * map.width * sizeof(PathNode *));
+    PathNode *reached = (PathNode *)malloc(map.height * map.width * sizeof(PathNode));
     reached[reachedSize] = startNode;
     reachedSize++;
 
     // Get all nodes in
     while (frontierSize > 0)
     {
+        // Unqueue first frontier item to the current node
         PathNode currentNode = frontier[0];
         for (int i = 0; i < frontierSize - 1; i++)
         {
@@ -691,6 +692,9 @@ static Point *LoadPathAStar(Image map, Point start, Point end, int *pointCount)
             }
         }
     }
+
+    free(reached);
+    free(frontier);
 
     *pointCount = pathCounter; // Return number of path points
     return path;               // Return path array (dynamically allocated)
